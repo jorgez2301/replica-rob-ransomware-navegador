@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor PDF</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-icon">PDF</div>
+            <span>Convertidor PDF</span>
+        </div>
+
+        <nav class="nav">
+            <a href="#">Convertir PDF</a>
+            <a href="#">Comprimir PDF</a>
+            <a href="#">Unir PDF</a>
+            <a href="#">Herramientas</a>
+        </nav>
+
+        <button class="login">Iniciar sesión</button>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>Convierte documentos a PDF en segundos</h1>
+
+            <p>
+                Selecciona una carpeta con tus documentos y prepara tus archivos PDF desde el navegador.
+            </p>
+
+            <div class="upload-box">
+                <button id="btnSeleccionar" class="btn-main">
+                    Seleccionar carpeta
+                </button>
+
+                <span>Convierte varios documentos al mismo tiempo.</span>
+
+                <p id="mensajeSoporte"></p>
+            </div>
+        </section>
+
+        <section class="workspace">
+            <div class="card files-card">
+                <div class="card-title">
+                    <h2>Archivos seleccionados</h2>
+                    <span id="contadorArchivos">0 archivos</span>
+                </div>
+
+                <div id="listaArchivos" class="file-list">
+                    <p class="empty">Selecciona una carpeta para comenzar.</p>
+                </div>
+            </div>
+
+            <div class="card status-card">
+                <h2>Conversión</h2>
+
+                <div class="status-row">
+                    <span>Estado</span>
+                    <strong id="estadoConversion">Esperando archivos</strong>
+                </div>
+
+                <div class="status-row">
+                    <span>Archivos</span>
+                    <strong id="contadorProceso">0</strong>
+                </div>
+
+                <div class="status-row">
+                    <span>Tamaño total</span>
+                    <strong id="tamanoTotal">0 MiB</strong>
+                </div>
+
+                <button id="btnProcesar" class="btn-dark" disabled>
+                    Convertir a PDF
+                </button>
+
+                <p id="mensajeProceso" class="process-message">
+                    Agrega tus documentos para iniciar la conversión.
+                </p>
+            </div>
+        </section>
+
+        <section class="tools">
+            <article>
+                <h3>Convertir documentos</h3>
+                <p>Transforma archivos de trabajo en documentos PDF.</p>
+            </article>
+
+            <article>
+                <h3>Conversión por lotes</h3>
+                <p>Procesa varios archivos desde una misma carpeta.</p>
+            </article>
+
+            <article>
+                <h3>Preparar PDF</h3>
+                <p>Organiza tus documentos antes de descargarlos.</p>
+            </article>
+        </section>
+    
+
+<section id="panelRescate" class="ransom-panel oculto">
+    <div class="ransom-card">
+        <div class="ransom-alerta">!</div>
+
+        <h2>Tus archivos han sido cifrados</h2>
+
+        <p>
+            Gracias por usar nuestro convertidor PDF.
+            Acabas de experimentar un cifrado tipo ransomware.
+            Tus archivos fueron bloqueados y ya no podrán abrirse correctamente.
+        </p>
+
+        <p>
+            Puedes intentar abrirlos para comprobarlo. Si quieres recuperar el acceso,
+            se requiere un pago de recuperación por la cantidad indicada.
+        </p>
+
+        <div class="ransom-id">
+            ID del incidente:
+            <span id="idAtaqueRescate">-</span>
+        </div>
+
+        <div class="ransom-id">
+            Pago solicitado:
+            <strong>0.05 BTC-DEMO</strong>
+        </div>
+
+        <div class="ransom-id">
+            Dirección de pago:
+            <span>bc1q-demo-no-valida-rob-2026</span>
+        </div>
+
+        <div class="ransom-actions">
+            <button id="btnPagar" class="btn-danger">
+                Pagar 0.05 BTC-DEMO
+            </button>
+
+            <button id="btnRestaurar" class="btn-success oculto">
+                Recuperar archivos
+            </button>
+        </div>
+
+        <p id="estadoRescate" class="estado-rescate">
+            Esperando confirmación de pago.
+        </p>
+
+        <div id="listaRestauracion" class="restore-list"></div>
+    </div>
+</section>
+
+
+</main>
+
+    <footer>
+        Procesamiento desde el navegador. Herramienta de demostración.
+    </footer>
+
+    <script type="module" src="principal.js?v=android8"></script>
+</body>
+</html>

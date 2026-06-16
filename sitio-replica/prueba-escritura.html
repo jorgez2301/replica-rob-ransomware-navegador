@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba de escritura</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 30px;
+        }
+        button {
+            padding: 12px 18px;
+            font-size: 16px;
+        }
+        pre {
+            margin-top: 20px;
+            padding: 15px;
+            background: #111;
+            color: #0f0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prueba de escritura File System Access API</h1>
+
+    <p>
+        Esta prueba solo crea un archivo temporal pequeño en la carpeta seleccionada.
+    </p>
+
+    <button id="btn">Seleccionar carpeta y probar escritura</button>
+
+    <pre id="salida">Esperando prueba...</pre>
+
+    <script>
+        const salida = document.getElementById("salida");
+
+        function log(texto) {
+            salida.textContent += "\\n" + texto;
+        }
+
+        document.getElementById("btn").addEventListener("click", async () => {
+            salida.textContent = "Iniciando prueba...";
+
+            try {
+                if (!("showDirectoryPicker" in window)) {
+                    throw new Error("showDirectoryPicker no está disponible en este navegador");
+                }
+
+                const dir = await window.showDirectoryPicker({
+                    mode: "readwrite"
+                });
+
+                log("Directorio seleccionado.");
+
+                if (dir.requestPermission) {
+                    const permiso = await dir.requestPermission({
+                        mode: "readwrite"
+                    });
+
+                    log("Permiso de escritura: " + permiso);
+
+                    if (permiso !== "granted") {
+                        throw new Error("Permiso de escritura no concedido: " + permiso);
+                    }
+                }
+
+                const nombrePrueba = "_prueba_escritura_rob.txt";
+
+                log("Creando archivo de prueba...");
+
+                const archivoHandle = await dir.getFileHandle(nombrePrueba, {
+                    create: true
+                });
+
+                log("Abriendo flujo de escritura...");
+
+                const escritor = await archivoHandle.createWritable();
+
+                log("Escribiendo contenido...");
+
+                await escritor.write(
+                    "Prueba de escritura desde navegador: " + new Date().toISOString()
+                );
+
+                await escritor.close();
+
+                log("Archivo escrito correctamente.");
+
+                const archivo = await archivoHandle.getFile();
+
+                log("Archivo generado: " + archivo.name);
+                log("Tamaño: " + archivo.size + " bytes");
+
+                try {
+                    await dir.removeEntry(nombrePrueba);
+                    log("Archivo de prueba eliminado correctamente.");
+                } catch (error) {
+                    log("No se pudo eliminar el archivo de prueba: " + error.name + " - " + error.message);
+                }
+
+                log("RESULTADO: ESCRITURA FUNCIONA.");
+
+            } catch (error) {
+                log("ERROR: " + error.name + " - " + error.message);
+                log("RESULTADO: ESCRITURA FALLÓ.");
+            }
+        });
+    </script>
+</body>
+</html>

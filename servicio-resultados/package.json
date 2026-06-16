@@ -1,0 +1,13 @@
+{
+  "name": "backend-resultados-rob",
+  "version": "1.0.0",
+  "description": "Backend de resultados para replica RøB",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

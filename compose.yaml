@@ -1,0 +1,43 @@
+services:
+  dnsmasq:
+    image: strm/dnsmasq
+    container_name: dnsmasq-rob
+    restart: unless-stopped
+    volumes:
+      - ./dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
+    ports:
+      - "10.0.2.3:53:53/udp"
+      - "10.0.2.3:53:53/tcp"
+    cap_add:
+      - NET_ADMIN
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-replica-rob
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certificados:/etc/nginx/certificados:ro
+      - ./sitio-replica:/usr/share/nginx/html:ro
+      - ./llaves/rsa_publica.pem:/usr/share/nginx/html/rsa_publica.pem:ro
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./servicio-resultados
+    container_name: backend-resultados
+    restart: unless-stopped
+    user: "995:982"
+    environment:
+      PUERTO: "3000"
+      RESULTADOS_PATH: "/app/resultados/resultados.json"
+      RSA_PRIVADA_PATH: "/app/llaves/rsa_privada.pem"
+    volumes:
+      - ./resultados:/app/resultados
+      - ./llaves/rsa_privada.pem:/app/llaves/rsa_privada.pem:ro
+    expose:
+      - "3000"

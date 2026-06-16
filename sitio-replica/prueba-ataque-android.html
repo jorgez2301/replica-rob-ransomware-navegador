@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prueba ataque Android</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 30px;
+            line-height: 1.5;
+        }
+
+        button {
+            padding: 12px 18px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        pre {
+            margin-top: 20px;
+            padding: 15px;
+            background: #111;
+            color: #00ff66;
+            white-space: pre-wrap;
+            border-radius: 8px;
+        }
+
+        .aviso {
+            background: #fff3cd;
+            border: 1px solid #ffecb5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prueba controlada Android / File System Access API</h1>
+
+    <div class="aviso">
+        Esta prueba NO cifra el archivo original. Crea una copia de laboratorio,
+        cifra la copia, la sobrescribe y luego intenta restaurarla.
+    </div>
+
+    <button id="btnProbar">Ejecutar prueba controlada</button>
+
+    <pre id="salida">Esperando prueba...</pre>
+
+    <script>
+        const salida = document.getElementById("salida");
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+
+        const MAGIC = "ROBANDR1";
+        const MAGIC_BYTES = encoder.encode(MAGIC);
+        const LIMITE_BYTES = 5 * 1024 * 1024;
+
+        let pasoActual = "inicio";
+
+        function log(texto) {
+            salida.textContent += "\\n" + texto;
+        }
+
+        function limpiarNombre(nombre) {
+            return nombre.replace(/[^a-zA-Z0-9._-]/g, "_");
+        }
+
+        function unirBytes(...arreglos) {
+            const total = arreglos.reduce((suma, arr) => suma + arr.length, 0);
+            const resultado = new Uint8Array(total);
+
+            let offset = 0;
+
+            for (const arr of arreglos) {
+                resultado.set(arr, offset);
+                offset += arr.length;
+            }
+
+            return resultado;
+        }
+
+        function bufferAHex(buffer) {
+            const bytes = new Uint8Array(buffer);
+            return Array.from(bytes)
+                .map(b => b.toString(16).padStart(2, "0"))
+                .join("");
+        }
+
+        async function sha256(buffer) {
+            const hash = await crypto.subtle.digest("SHA-256", buffer);
+            return bufferAHex(hash);
+        }
+
+        async function pedirPermisoEscritura(directorio) {
+            pasoActual = "permiso de escritura";
+
+            if (directorio.queryPermission) {
+                const actual = await directorio.queryPermission({ mode: "readwrite" });
+                log("Permiso actual: " + actual);
+            }
+
+            if (directorio.requestPermission) {
+                const permiso = await directorio.requestPermission({ mode: "readwrite" });
+                log("Permiso solicitado: " + permiso);
+
+                if (permiso !== "granted") {
+                    throw new Error("Permiso de escritura no concedido: " + permiso);
+                }
+            }
+        }
+
+        async function obtenerPrimerArchivo(directorio) {
+            pasoActual = "listar archivos";
+
+            for await (const [nombre, entrada] of directorio.entries()) {
+                if (entrada.kind !== "file") {
+                    continue;
+                }
+
+                if (nombre.startsWith("_rob_")) {
+                    continue;
+                }
+
+                const archivo = await entrada.getFile();
+
+                if (archivo.size > LIMITE_BYTES) {
+                    throw new Error("El archivo es mayor a 5 MiB. Usa un archivo pequeño para esta prueba.");
+                }
+
+                return {
+                    nombre,
+                    entrada,
+                    archivo
+                };
+            }
+
+            throw new Error("No se encontró ningún archivo válido en el directorio.");
+        }
+
+        async function escribirCompleto(handle, datos) {
+            pasoActual = "abrir escritor";
+            const escritor = await handle.createWritable();
+
+            pasoActual = "escribir archivo";
+            await escritor.write(datos);
+
+            pasoActual = "cerrar escritor";
+            await escritor.close();
+        }
+
+        async function ejecutarPrueba() {
+            salida.textContent = "Iniciando prueba controlada...";
+
+            try {
+                if (!("showDirectoryPicker" in window)) {
+                    throw new Error("showDirectoryPicker no está disponible.");
+                }
+
+                pasoActual = "seleccionar directorio";
+                const directorio = await window.showDirectoryPicker({
+                    mode: "readwrite"
+                });
+
+                log("Directorio seleccionado.");
+
+                await pedirPermisoEscritura(directorio);
+
+                const original = await obtenerPrimerArchivo(directorio);
+
+                log("Archivo usado como base: " + original.nombre);
+                log("Tamaño original: " + original.archivo.size + " bytes");
+
+                pasoActual = "leer archivo original";
+                const bufferOriginal = await original.archivo.arrayBuffer();
+                const hashOriginal = await sha256(bufferOriginal);
+
+                log("SHA-256 original: " + hashOriginal);
+
+                const nombreCopia = "_rob_android_copia_" + limpiarNombre(original.nombre);
+
+                pasoActual = "crear handle de copia";
+                let copiaHandle = await directorio.getFileHandle(nombreCopia, {
+                    create: true
+                });
+
+                log("Copia de laboratorio: " + nombreCopia);
+
+                pasoActual = "escribir copia original";
+                await escribirCompleto(copiaHandle, bufferOriginal);
+
+                log("Copia creada correctamente.");
+
+                pasoActual = "reabrir copia antes de cifrar";
+                copiaHandle = await directorio.getFileHandle(nombreCopia);
+
+                pasoActual = "leer copia antes de cifrar";
+                const archivoCopia = await copiaHandle.getFile();
+                const bufferCopia = await archivoCopia.arrayBuffer();
+
+                pasoActual = "generar llave AES-GCM";
+                const llave = await crypto.subtle.generateKey(
+                    {
+                        name: "AES-GCM",
+                        length: 256
+                    },
+                    false,
+                    ["encrypt", "decrypt"]
+                );
+
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+
+                pasoActual = "cifrar copia";
+                const cifrado = await crypto.subtle.encrypt(
+                    {
+                        name: "AES-GCM",
+                        iv
+                    },
+                    llave,
+                    bufferCopia
+                );
+
+                const paquete = unirBytes(
+                    MAGIC_BYTES,
+                    iv,
+                    new Uint8Array(cifrado)
+                );
+
+                log("Cifrado generado: " + paquete.byteLength + " bytes");
+
+                pasoActual = "reabrir copia antes de sobrescribir cifrado";
+                copiaHandle = await directorio.getFileHandle(nombreCopia);
+
+                pasoActual = "sobrescribir copia con cifrado";
+                await escribirCompleto(copiaHandle, paquete);
+
+                log("Copia cifrada y sobrescrita correctamente.");
+
+                pasoActual = "reabrir copia cifrada";
+                copiaHandle = await directorio.getFileHandle(nombreCopia);
+
+                pasoActual = "leer copia cifrada";
+                const archivoCifrado = await copiaHandle.getFile();
+                const bufferCifrado = await archivoCifrado.arrayBuffer();
+                const bytesCifrados = new Uint8Array(bufferCifrado);
+
+                const magicLeido = decoder.decode(bytesCifrados.slice(0, 8));
+
+                if (magicLeido !== MAGIC) {
+                    throw new Error("Formato cifrado no reconocido.");
+                }
+
+                const ivLeido = bytesCifrados.slice(8, 20);
+                const datosCifrados = bytesCifrados.slice(20);
+
+                pasoActual = "descifrar copia";
+                const descifrado = await crypto.subtle.decrypt(
+                    {
+                        name: "AES-GCM",
+                        iv: ivLeido
+                    },
+                    llave,
+                    datosCifrados
+                );
+
+                const hashDescifrado = await sha256(descifrado);
+
+                log("SHA-256 descifrado: " + hashDescifrado);
+
+                pasoActual = "reabrir copia antes de restaurar";
+                copiaHandle = await directorio.getFileHandle(nombreCopia);
+
+                pasoActual = "restaurar copia descifrada";
+                await escribirCompleto(copiaHandle, descifrado);
+
+                if (hashOriginal !== hashDescifrado) {
+                    throw new Error("El hash restaurado no coincide con el original.");
+                }
+
+                log("Copia restaurada correctamente.");
+                log("RESULTADO: PRUEBA COMPLETA EXITOSA.");
+
+            } catch (error) {
+                log("");
+                log("ERROR EN PASO: " + pasoActual);
+                log("TIPO: " + error.name);
+                log("MENSAJE: " + error.message);
+                log("RESULTADO: PRUEBA FALLIDA.");
+                alert("Error en paso: " + pasoActual + "\\n" + error.name + "\\n" + error.message);
+            }
+        }
+
+        document.getElementById("btnProbar").addEventListener("click", ejecutarPrueba);
+    </script>
+</body>
+</html>

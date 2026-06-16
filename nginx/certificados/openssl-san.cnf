@@ -1,0 +1,24 @@
+[req]
+default_bits = 2048
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = MX
+ST = Veracruz
+L = Xalapa
+O = Laboratorio Criptografia
+OU = Replica Ransomware Navegador
+CN = 10.0.3.15
+
+[v3_req]
+subjectAltName = @alt_names
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+
+[alt_names]
+IP.1 = 10.0.3.15
+IP.2 = 10.0.2.3
+IP.3 = 127.0.0.1
+DNS.1 = localhost
